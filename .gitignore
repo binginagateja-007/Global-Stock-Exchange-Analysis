@@ -12,7 +12,7 @@ env/
 
 # VS Code
 .vscode/
-
+git --version
 # Environment Variables
 .env
 

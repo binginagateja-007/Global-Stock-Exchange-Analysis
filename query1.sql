@@ -382,3 +382,270 @@ where rnk=2
 -----------------------------------MODULE 4 ANALYSIS ------------------------------------------------------
 
 -- Monthly Market Performence
+
+
+select IndexName,
+YEAR(TradeDate) as _Year,
+MONTH(TradeDate) as MonthNumber,
+DATENAME(month,TradeDate) as Month_Name,
+COUNT(*) as TradingDays,
+AVG(ClosePrice) as AverageClosingPrice,
+MAX(ClosePrice) as HighestClosingPrice,
+MIN(ClosePrice) as LowestClosingPrice,
+AVG(Case when Volume > 0 then Volume End) as AverageVolume,
+AVG(HighPrice-LowPrice) as DailyAverage
+from GlobalIndexPrices
+group by IndexName,YEAR(TradeDate) ,
+MONTH(TradeDate) ,
+DATENAME(month,TradeDate) 
+
+
+-- Quarterly Performance
+--  Lowest Close Average Volume (excluding 0)Average Daily Range
+
+select 
+IndexName,
+YEAR(TradeDate) as Yearr,
+'Q'+DATENAME(quarter,TradeDate) as QuarterName,
+COUNT(*) as TradingDays,
+AVG(ClosePrice) as AverageClosingPrice,
+MAX(ClosePrice) as HighestClosingPrice,
+MIN(ClosePrice) as LowestClosingPrice,
+AVG(case when volume > 0 then volume end) as AverageVolume
+from GlobalIndexPrices
+group by IndexName,YEAR(TradeDate),DATENAME(quarter,TradeDate)
+
+
+-- Task 3 — Yearly Performance
+
+select IndexName,
+YEAR(TradeDate) as Yeaar,
+COUNT(*) as TradingDays,
+MAX(ClosePrice) as HighestClosePrice,
+MIN(ClosePrice) as LowestClosePrice,
+AVG(ClosePrice) as AverageClosingPrice,
+AVG(case when volume>0 then volume end) as AverageVolume,
+MAX(Volume) as Highestvolume,
+MIN(case when volume > 0 then volume end) as LowestVolume
+from GlobalIndexPrices
+group by IndexName,YEAR(TradeDate)
+order by IndexName,YEAR(TradeDate)
+
+-- TASK 4 - Year-over-Year (YoY) Growth
+
+with cta1 as (
+    select IndexName ,
+    YEAR(TradeDate) as Yearr,
+    AVG(ClosePrice) as CurrentAverageCp
+    from GlobalIndexPrices
+    group by IndexName,YEAR(TradeDate)
+),
+cta2 as (
+    select IndexName,
+    [Yearr],
+    CurrentAverageCp,
+    LAG(CurrentAverageCp,1,NULL) over (partition by IndexName order by [Yearr]) as prevAverageCp
+    from cta1
+)
+select 
+IndexName,
+[Yearr],
+CurrentAverageCp,
+[prevAverageCp],
+(CurrentAverageCp-[prevAverageCp]) as YoYChange,
+((CurrentAverageCp - prevAverageCp) * 1.0 / NULLIF(prevAverageCp, 0)) AS [YoY Growth %]
+from cta2
+order by IndexName,Yearr
+
+--- Month-over-Month (MoM) Growth
+
+with dat as (
+    select 
+        IndexName,
+        YEAR(TradeDate) as Yearr,
+        DATENAME(Month,TradeDate) as Month_Name,
+        MONTH(TradeDate) as mon,
+        AVG(Closeprice) as AverageCloseprice
+        from GlobalIndexPrices
+        group by IndexName,Year(TradeDate),DATENAME(Month,TradeDate),MONTH(TradeDate)
+),
+metrics as (
+    select 
+        IndexName,
+        [Yearr],
+        [Month_Name],
+        [mon],
+        AverageCloseprice,
+        LAG(AverageClosePrice,1,NULL) over (partition by IndexName order by [Yearr],[mon]) as prevcp
+        from dat
+)
+select 
+    IndexName,
+    [Yearr],
+    [Month_Name],
+    [mon],
+    AverageCloseprice,
+    [prevcp],
+    ((AverageClosePrice-[prevcp])*1.0/[prevcp])*100 as [MoMGrowth%]
+    from metrics
+    order by IndexName,Yearr,mon
+
+-- Best Performing Year : Which year had the highest average closing price for each index?
+
+with best as (
+    select 
+        IndexName,
+        YEAR(TradeDate) as Yearr,
+        AVG(ClosePrice) as AverageClosePrice
+        from GlobalIndexPrices
+        group by IndexName,YEAR(TradeDate)
+    ),
+bmetrics as (
+    select 
+        IndexName,
+        [Yearr],
+        [AverageClosePrice],
+        RANK() over (partition by IndexName order by AverageClosePrice desc) as rnk
+        from best
+    )
+select 
+    IndexName,
+    [Yearr],
+    [AverageClosePrice]
+    from bmetrics
+    where rnk=1
+
+
+--- Worst Performing Year : Which year had the worst average closing price for each index?
+with best as (
+    select 
+        IndexName,
+        YEAR(TradeDate) as Yearr,
+        AVG(ClosePrice) as AverageClosePrice
+        from GlobalIndexPrices
+        group by IndexName,YEAR(TradeDate)
+    ),
+bmetrics as (
+    select 
+        IndexName,
+        [Yearr],
+        [AverageClosePrice],
+        RANK() over (partition by IndexName order by AverageClosePrice asc) as rnk
+        from best
+    )
+select 
+    IndexName,
+    [Yearr],
+    [AverageClosePrice]
+    from bmetrics
+    where rnk=1
+
+
+-- Best Performing Month Across all available years, which calendar month has 
+--historically shown the highest average closing price for each index?
+
+
+with hist as (
+    select 
+        IndexName ,
+        MONTH(TradeDate) as Month_Number,
+        DATENAME(MONTH,TradeDate) as Month_Name,
+        AVG(ClosePrice) as AverageCp
+    from GlobalIndexPrices
+    group by IndexName,MONTH(TradeDate),DATENAME(MONTH,TradeDate)
+),
+hist2 as (
+    select
+        IndexName,
+        [Month_Number],
+        [Month_Name],
+        [AverageCp],
+        RANK() over (partition by IndexName order by AverageCp desc) as rnk
+        from hist
+    )
+select 
+IndexName,
+[Month_Number],
+[Month_Name],
+[AverageCp]
+from hist2
+where rnk=1
+order by IndexName
+
+-- Worst Performing Month
+
+
+with hist as (
+    select 
+        IndexName ,
+        MONTH(TradeDate) as Month_Number,
+        DATENAME(MONTH,TradeDate) as Month_Name,
+        AVG(ClosePrice) as AverageCp
+    from GlobalIndexPrices
+    group by IndexName,MONTH(TradeDate),DATENAME(MONTH,TradeDate)
+),
+hist2 as (
+    select
+        IndexName,
+        [Month_Number],
+        [Month_Name],
+        [AverageCp],
+        RANK() over (partition by IndexName order by AverageCp asc) as rnk
+        from hist
+    )
+select 
+IndexName,
+[Month_Number],
+[Month_Name],
+[AverageCp]
+from hist2
+where rnk=1
+order by IndexName
+
+
+--Monthly Trend Consistency
+
+WITH MonthlyAverages AS (
+    SELECT 
+        IndexName AS [Index],
+        YEAR(TradeDate) AS [TradingYear],
+        MONTH(TradeDate) AS [MonthNumber],
+        AVG(ClosePrice) AS [AvgMonthlyClose]
+    FROM 
+        GlobalIndexPrices
+    GROUP BY 
+        IndexName,
+        YEAR(TradeDate),
+        MONTH(TradeDate)
+),
+MonthlyReturns AS (
+    SELECT 
+        [Index],
+        [TradingYear],
+        [MonthNumber],
+        [AvgMonthlyClose],
+        LAG([AvgMonthlyClose], 1, NULL) OVER (
+            PARTITION BY [Index] 
+            ORDER BY [TradingYear], [MonthNumber]
+        ) AS [PrevAvgMonthlyClose]
+    FROM 
+        MonthlyAverages
+)
+SELECT 
+    [Index],
+    COUNT(DISTINCT [TradingYear]) AS [Number of Years],
+    COUNT([AvgMonthlyClose]) AS [Total Months],
+    AVG((( [AvgMonthlyClose] - [PrevAvgMonthlyClose] ) * 100.0) / NULLIF([PrevAvgMonthlyClose], 0)) AS [Average Monthly Return],
+    MAX([AvgMonthlyClose]) AS [Highest Monthly Average],
+    MIN([AvgMonthlyClose]) AS [Lowest Monthly Average]
+FROM 
+    MonthlyReturns
+GROUP BY 
+    [Index]
+ORDER BY 
+    [Index];
+
+
+--------------------------------------------MODULE 5 ANALYSIS------------------------------------------------------------------------------------------
+
+

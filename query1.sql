@@ -648,4 +648,103 @@ ORDER BY
 
 --------------------------------------------MODULE 5 ANALYSIS------------------------------------------------------------------------------------------
 
+-- Task 1 — Running (Cumulative) Closing Price
+
+select 
+TradeDate,
+IndexName,
+ClosePrice,
+SUM(ClosePrice) over (partition by IndexName order by TradeDate) as RunningClosingPrice
+from GlobalIndexPrices
+
+
+-- Task 2 — Running Trading Volume
+
+select
+TradeDate,
+IndexName,
+Volume,
+SUM(case when Volume>0 then Volume end) over (partition by IndexName order by TradeDate) as Running_Volume
+from GlobalIndexPrices
+
+--Task 3 — 7-Day Moving Average
+
+select 
+TradeDate,
+IndexName,
+ClosePrice,
+AVG(ClosePrice) over (partition by IndexName order by TradeDate Rows between 6 preceding and current row) as seven_day_moving_average_closeprice
+from GlobalIndexPrices
+
+-- Task 4 — 30-Day Moving Average
+
+
+select 
+TradeDate,
+IndexName,
+ClosePrice,
+AVG(ClosePrice) over (partition by IndexName order by TradeDate Rows between 29 preceding and current row) as thirty_days_moving_average_closingprice
+from GlobalIndexPrices
+
+-- Task 5 — 7-Day Rolling Average Volume
+
+select 
+TradeDate,
+IndexName,
+Volume,
+AVG(Volume) over (partition by IndexName order by TradeDate Rows between 6 preceding and current row) as [7days_RollingVolume]
+from GlobalIndexPrices
+where Volume is not null and Volume > 0
+
+
+--Task 6 — Running Highest Close
+
+select 
+TradeDate,
+IndexName,
+ClosePrice,
+MAX(ClosePrice) over (partition by IndexName order by TradeDate rows between unbounded preceding and current row) as [RunningHighestClose]
+from GlobalIndexPrices
+
+-- Running Lowest Close
+
+
+select 
+TradeDate,
+IndexName,
+ClosePrice,
+MIN(ClosePrice) over (partition by IndexName order by TradeDate rows between unbounded preceding and current row) as [RunningHighestClose]
+from GlobalIndexPrices
+
+--Task 8 — FIRST_VALUE() & LAST_VALUE()
+
+select 
+TradeDate,
+IndexName,
+ClosePrice,
+FIRST_VALUE(ClosePrice) over (partition by IndexName order by TradeDate asc) as [First_close_price],
+LAST_VALUE(ClosePrice) over (partition by IndexName order by TradeDate asc rows between unbounded preceding and unbounded following) as [Last_close_price]
+from GlobalIndexPrices
+
+--Task 9 — Daily Ranking
+
+select
+    TradeDate,
+    IndexName,
+    ClosePrice,
+    ROW_NUMBER() over (partition by IndexName order by TradeDate) as [Row_Number],
+    RANK() over (partition by IndexName order by TradeDate) as [Rank],
+    DENSE_RANK() over (partition by IndexName order by TradeDate) as [dense_rank]
+from GlobalIndexPrices
+
+
+-- percentage contribution
+select 
+TradeDate,
+IndexName,
+ClosePrice,
+SUM(ClosePrice) over (partition by TradeDate) as TotalClosePriceForThatDate,
+(ClosePrice/SUM(ClosePrice) over (partition by TradeDate))*100 as PercentageContribution
+from GlobalIndexPrices
+
 

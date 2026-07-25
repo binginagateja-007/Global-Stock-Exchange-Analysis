@@ -85,6 +85,29 @@ group by YEAR(TradeDate),
 
 select Top 100 * from vw_MonthlyPerformance
 
+-- altering for few changes 
+
+
+alter view vw_MonthlyPerformance
+as 
+select 
+	YEAR(TradeDate) as [Yearr],
+	DATENAME(MONTH,TradeDate) as [Monthh],
+	Ticker,
+	IndexName,
+	COUNT(*) as TradingDays,
+	AVG(ClosePrice) as [AverageClosePrice],
+	MAX(ClosePrice) as [HighestClosePrice],
+	MIN(ClosePrice) as [LowestClosePrice],
+	AVG(HighPrice-LowPrice) as [AverageDailyRange],
+	MONTH(TradeDate) as [MonthNumber]
+from GlobalIndexPrices
+group by YEAR(TradeDate) ,
+		MONTH(TradeDate) ,
+		DATENAME(Month,TradeDate),
+		Ticker,
+		IndexName
+
 --vw_YearlyPerformance
 
 create view vw_YearlyPerformance
